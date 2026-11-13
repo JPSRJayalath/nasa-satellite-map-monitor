@@ -1,0 +1,237 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+:root {
+  --background: #ededed;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #000000;
+    --panelBackground: #1d1d1d;
+    --foreground: #ededed;
+    --border: rgb(120, 120, 120);
+    --hoverbackground: rgba(255, 255, 255, 0.2);
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  width: 100vw;
+  height: 100vh;
+}
+
+.maplibregl-ctrl-bottom-right {
+  display: none !important;
+}
+
+.maplibregl-popup-content{
+  color: black;
+  border-radius: 10px !important;
+  padding-top: 0px !important;
+}
+
+.maplibregl-popup-close-button{
+  display: none;
+}
+
+.detailsPanel{
+  position: absolute;
+  top: 20;
+  right: 20;
+  border-radius: 10px;
+  z-index: 9999;
+  background: white;
+  color: black;
+}
+
+.macOSCloseControler{
+  width: 100%;
+  height: auto;
+  display: flex;
+  flex-direction: row-reverse;
+}
+
+.macOSCloseControler > button{
+  background: rgb(245, 62, 62);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  color: rgb(245, 62, 62);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+  margin-right: 4px;
+  cursor: pointer;
+}
+
+.macOSCloseControler > button:hover{
+  color: black;
+}
+
+.detailsContainer{
+  margin-top: -8px;
+  padding: 0 40px 10px 10px;
+}
+
+.mainElement{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.errMessage{
+  width: 200px;
+  height: 50px;
+  background: var(--foreground);
+  position: absolute;
+  top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 10px;
+  border-radius: 10px;
+  display: none;
+}
+
+.errMessage > span{
+  color: var(--background);
+}
+
+.errMessage > button{
+  margin-right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  color : var(--background);
+  cursor: pointer;
+}
+
+.errMessage > button:hover{
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.mainContainer{
+  display: grid;
+  grid-template-columns: 6fr 20fr;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  gap: 10px;padding: 10px;
+}
+
+.mapControlers{
+  width: 100%;
+  height: 100%;
+  background: var(--panelBackground);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.mapControlers > h2{
+  font-size: 2rem;
+}
+
+input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #111;
+  color: white;
+  outline: none;
+}
+
+input:focus {
+  border-color: #666;
+}
+
+
+
+.mapContainer{
+  width: 100%;
+  height: 100%;
+}
+
+.maplibregl-map{
+  border-radius: 12px;
+}
+
+.mapClose{
+  width: 14px;
+  height: 14px;
+  background: rgb(245, 62, 62);
+  position: absolute;
+  top: 20px;
+  margin-left: 10px;
+  border-radius: 50%;
+  color: rgb(245, 62, 62);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.mapClose:hover{
+  color: black;
+}
+
+.MainOptionPanel{
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  align-items: center;
+  justify-content: center;
+}
+
+.mapOpen,
+.analyzePanelOpen{
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.mapOpen:hover,
+.analyzePanelOpen:hover{
+  background: var(--hoverbackground);
+  border-radius: 10px;
+}
+
+.mapOpen > div,
+.analyzePanelOpen > div{
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.mapIcon{
+  width: 100px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  margin-bottom: 10px;
+}
+
+.chartIMG > svg{
+  width: 100px;
+  height: 100px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.chartSVG{
+  fill: var(--foreground);
+}
