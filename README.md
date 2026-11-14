@@ -59,7 +59,7 @@ Keep both terminals running.
 **Terminal 1 — backend:** from the `server` directory, activate the virtual environment if needed, then start FastAPI:
 
 ```bash
-uvicorn main:app --reload --host 0.0.0.0 --port 9000
+uvicorn server:app --reload --host 0.0.0.0 --port 9000
 ```
 
 The backend should report that it is listening on port `9000`. Its interactive API documentation is available at [http://localhost:9000/docs](http://localhost:9000/docs).
