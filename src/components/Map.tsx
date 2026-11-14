@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Map, setWorkerUrl, type GeoJSONSource, LngLatBounds } from "maplibre-gl";
+import { Map, setWorkerUrl, type GeoJSONSource, LngLatBounds, Marker } from "maplibre-gl";
 import type { FireData } from "@/hooks/useFireData";
 import type { FeatureCollection, Point } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -129,7 +129,8 @@ export default function MapComponent({
 }: MapComponentProps) {
 
   const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<Map | null>(null);
+  const mapRef = useRef(null);
+  const markerRef = useRef<Marker | null>(null);
 
   const [selectedFire, setSelectedFire] =
     useState<FireData | null>(null);
@@ -177,7 +178,7 @@ export default function MapComponent({
           ],
 
           "circle-color": "#f97316",
-          "circle-stroke-width": 4,
+          "circle-stroke-width": 3,
           "circle-stroke-color": "#f97316"
         },
       });
@@ -213,6 +214,10 @@ export default function MapComponent({
     });
 
     return () => {
+      if (markerRef.current) {
+        markerRef.current.remove();
+        markerRef.current = null;
+      }
       mapRef.current = null;
       map.remove();
     };
@@ -291,7 +296,7 @@ export default function MapComponent({
     return calculateFireRisk(fire);
   }
 
-  // Search location using longitude and latitude
+  // Search location using longitude and latitude with a blinking/pulsing marker
   function targetLocation(
     longitude: number,
     latitude: number
@@ -304,6 +309,25 @@ export default function MapComponent({
       duration: 1500,
       essential: true,
     });
+
+    // Remove previous target marker if it exists
+    if (markerRef.current) {
+      markerRef.current.remove();
+      markerRef.current = null;
+    }
+
+    // Create custom DOM element for the blinking/pulsing dot
+    const el = document.createElement("div");
+    el.className = "relative flex items-center justify-center w-6 h-6";
+    el.innerHTML = `
+      <span class="absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75 animate-ping"></span>
+      <span class="relative inline-flex rounded-full h-3 w-3 bg-orange-600 border-2 border-white shadow-lg"></span>
+    `;
+
+    // Add marker to map
+    markerRef.current = new Marker({ element: el })
+      .setLngLat([longitude, latitude])
+      .addTo(mapRef.current);
   }
 
   // Watch coordinate changes from page.tsx

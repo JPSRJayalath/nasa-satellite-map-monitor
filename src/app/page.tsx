@@ -136,7 +136,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-        <div className="mapControlers" style={{display: isMainOptionPanel ? "none" : "block"}}>
+        <div className="mapControlers" style={{display: isMainOptionPanel ? "none" : "flex"}}>
           <h2>Filters</h2>
           <input type="text" placeholder="Country" value={selectedContry} list="countries" onChange={(e) => setSelectedCountry(e.target.value)} />
           <datalist id="countries">
