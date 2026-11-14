@@ -30,7 +30,7 @@ const MapComponent = dynamic(() => import("@/components/Map"),
 );
 
 export default function Home() {
-  const { fires, err, connected } = useFireData();
+  const { fires, err, connected, mapDataInfo } = useFireData();
   const [isMapVisible, setIsMapVisible] = useState<boolean>(false);
   const [isMainOptionPanel, setIsMainOptionPanel] = useState<boolean>(true);
   const [isAnalyzePanel, setIsAnalyzePanel] = useState<boolean>(false);
@@ -45,6 +45,7 @@ export default function Home() {
   const [isLong, setIsLong] = useState<number | null>(null);
   const [isLat, setIsLat] = useState<number | null>(null);
   const [isActiveRisk, setIsActiveRisk] = useState<FireRiskFilter | null>(null);
+  const [locationLimit, setLocationLimit] = useState(200);
 
   function calculateFireRisk(fire: FireData) {
     const frpScore = Math.min(
@@ -88,6 +89,7 @@ export default function Home() {
   function toggleSensorFamily(sensorFamily: SensorFamily) {
     const isVisible = visibleSensorFamilies.includes(sensorFamily);
 
+    setLocationLimit(200);
     setVisibleSensorFamilies((current) =>
       isVisible
         ? current.filter((family) => family !== sensorFamily)
@@ -101,6 +103,11 @@ export default function Home() {
     }
   }
 
+  function setRiskFilter(risk: FireRiskFilter | null) {
+    setLocationLimit(200);
+    setIsActiveRisk(risk);
+  }
+
   useEffect(() => {
     fetch('/countries.geojson')
     .then((res) => res.json())
@@ -112,7 +119,7 @@ export default function Home() {
     });
   }, []);
 
-  const availableYears = Array.from(
+  const availableYears = mapDataInfo?.years ?? Array.from(
     new Set(
       fires.flatMap((fire) => {
         const year = fire.acq_date?.slice(0, 4);
@@ -133,7 +140,7 @@ export default function Home() {
       isActiveRisk === null ||
       calculateFireRisk(fire).level.toLowerCase() === isActiveRisk
   );
-  
+
   return (
     <main className="w-screen h-screen mainElement">
       <div className="errMessage">
@@ -216,7 +223,10 @@ export default function Home() {
                 <select
                   id="fire-year"
                   value={selectedYear}
-                  onChange={(event) => setSelectedYear(event.target.value)}
+                  onChange={(event) => {
+                    setLocationLimit(200);
+                    setSelectedYear(event.target.value);
+                  }}
                 >
                   <option value="all">All years</option>
                   {availableYears.map((year) => (
@@ -227,18 +237,68 @@ export default function Home() {
                 </select>
               </div>
               <div className="riskRatio">
-                <button onClick={() => setIsActiveRisk(null)} className="Critical critical">All</button>
-                <button onClick={() => setIsActiveRisk("critical")} className="Critical critical">Critical</button>
-                <button onClick={() => setIsActiveRisk("high")} className="High high">High</button>
-                <button onClick={() => setIsActiveRisk("moderate")} className="Moderate moderate">Moderate</button>
-                <button onClick={() => setIsActiveRisk("low")} className="Low low">Low</button>
+                <button
+                  type="button"
+                  aria-pressed={isActiveRisk === null}
+                  onClick={() => setRiskFilter(null)}
+                  className={`Critical critical${isActiveRisk === null ? " active" : ""}`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={isActiveRisk === "critical"}
+                  onClick={() => setRiskFilter("critical")}
+                  className={`Critical critical${isActiveRisk === "critical" ? " active" : ""}`}
+                >
+                  Critical
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={isActiveRisk === "high"}
+                  onClick={() => setRiskFilter("high")}
+                  className={`High high${isActiveRisk === "high" ? " active" : ""}`}
+                >
+                  High
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={isActiveRisk === "moderate"}
+                  onClick={() => setRiskFilter("moderate")}
+                  className={`Moderate moderate${isActiveRisk === "moderate" ? " active" : ""}`}
+                >
+                  Moderate
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={isActiveRisk === "low"}
+                  onClick={() => setRiskFilter("low")}
+                  className={`Low low${isActiveRisk === "low" ? " active" : ""}`}
+                >
+                  Low
+                </button>
               </div>
+              {mapDataInfo && (
+                <div className="locationDataStatus" role="status">
+                  {mapDataInfo.returned < mapDataInfo.total && (
+                    <span>
+                      The location list shows a sample of {mapDataInfo.returned.toLocaleString()} of{" "}
+                      {mapDataInfo.total.toLocaleString()} detections. The map shows exact locations for all detections in view;
+                      analytics use all detections.
+                    </span>
+                  )}
+                  <span>
+                    Showing {Math.min(locationLimit, visibleFires.length).toLocaleString()} of{" "}
+                    {visibleFires.length.toLocaleString()} filtered locations.
+                  </span>
+                </div>
+              )}
               <div className="locations">
-                {visibleFires.map((loc) => {
+                {visibleFires.slice(0, locationLimit).map((loc) => {
                   const sensorFamily =
                     loc.sensor_family ?? (loc.brightness != null ? "MODIS" : "VIIRS");
                   const datasetLabel =
-                    sensorFamily === "MODIS" ? "MODIS / dataset_02" : "VIIRS / dataset_01";
+                    `${sensorFamily} / ${loc.dataset_name ?? "dataset"}`;
 
                   return (
                     <div
@@ -248,7 +308,7 @@ export default function Home() {
                         setIsLong(loc.longitude);
                       }}
                       className="loc"
-                      key={`${loc.latitude}-${loc.longitude}-${loc.acq_date}-${loc.acq_time}-${loc.satellite}`}
+                      key={`${loc.dataset_name}-${loc.latitude}-${loc.longitude}-${loc.acq_date}-${loc.acq_time}-${loc.satellite}`}
                     >
                       <div className="locDetails">
                         <span>Longitude: {loc.longitude}</span>
@@ -267,19 +327,30 @@ export default function Home() {
                   );
                 })}
               </div>
+              {visibleFires.length > locationLimit && (
+                <button
+                  type="button"
+                  className="loadMoreLocations"
+                  onClick={() => setLocationLimit((limit) => limit + 200)}
+                >
+                  Show more locations
+                </button>
+              )}
             </div>
             <div className="mapContainer" style={{display: isMapVisible ? "block" : "none"}}>
-              <MapComponent
-                fires={yearFilteredFires}
-                selectedCountry={selectedContry}
-                long={isLong}
-                lat={isLat}
-                activeRisk={isActiveRisk}
-                selectedFire={selectedFire}
-                onSelectFire={setSelectedFire}
-                visibleSensorFamilies={visibleSensorFamilies}
-                onToggleSensorFamily={toggleSensorFamily}
-              />
+              {isMapVisible && (
+                <MapComponent
+                  selectedCountry={selectedContry}
+                  long={isLong}
+                  lat={isLat}
+                  selectedYear={selectedYear}
+                  activeRisk={isActiveRisk}
+                  selectedFire={selectedFire}
+                  onSelectFire={setSelectedFire}
+                  visibleSensorFamilies={visibleSensorFamilies}
+                  onToggleSensorFamily={toggleSensorFamily}
+                />
+              )}
               <button className="mapClose" onClick={() => {setIsMainOptionPanel(true); setIsMapVisible(false)}}>×</button>
             </div>
           </section>

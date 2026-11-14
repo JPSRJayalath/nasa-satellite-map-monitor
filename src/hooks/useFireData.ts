@@ -9,6 +9,12 @@ import { useEffect, useState } from "react";
 
 export type SensorFamily = "MODIS" | "VIIRS";
 
+export interface FireMapDataInfo {
+    total: number;
+    returned: number;
+    years: string[];
+}
+
 export interface FireData {
     latitude: number;
     longitude: number;
@@ -21,6 +27,7 @@ export interface FireData {
     confidence: number | string;
     confidence_value?: number | null;
     sensor_family?: SensorFamily;
+    dataset_name?: string;
     brightness?: number | null;
     bright_t31?: number | null;
     version: string;
@@ -117,6 +124,9 @@ export function useFireData(category: "analytics" | "any" = "any") {
 
     const [err, setErr] = useState<string | null>(null);
 
+    const [mapDataInfo, setMapDataInfo] =
+        useState<FireMapDataInfo | null>(null);
+
     useEffect(() => {
 
         let ws: WebSocket | null = null;
@@ -159,17 +169,34 @@ export function useFireData(category: "analytics" | "any" = "any") {
 
                     switch (message.type) {
 
-                        case "initial_data":
+                        case "initial_data": {
 
-                            setFires(message.data ?? []);
+                            const mapRecords = Array.isArray(message.data)
+                                ? message.data
+                                : [];
+                            const total = typeof message.count === "number"
+                                ? message.count
+                                : mapRecords.length;
+                            const returned = typeof message.returned === "number"
+                                ? message.returned
+                                : mapRecords.length;
+                            const years = Array.isArray(message.years)
+                                ? message.years
+                                : [];
+
+                            setFires(mapRecords);
+                            setMapDataInfo({ total, returned, years });
                             setLoading(false);
 
                             console.log(
                                 "Fire records received:",
-                                message.count
+                                total,
+                                "location-list records:",
+                                returned
                             );
 
                             break;
+                        }
 
                         case "analytics_update":
 
@@ -261,6 +288,7 @@ export function useFireData(category: "analytics" | "any" = "any") {
         analytics,
         connected,
         loading,
-        err
+        err,
+        mapDataInfo
     };
 }

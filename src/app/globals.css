@@ -7,7 +7,8 @@
   --foreground: #171717;
   --panelBackground: #ffffff;
   --border: #707070;
-  --hoverBackground: rgba(0, 0, 0, 0.2)
+  --hoverBackground: rgba(0, 0, 0, 0.2);
+  user-select: none;
 }
 
 @theme inline {
@@ -25,6 +26,7 @@
     --border: rgb(120, 120, 120);
     --hoverBackground: rgba(255, 255, 255, 0.2);
     --plainBackground: #1d1d1d;
+    user-select: none;
   }
 }
 
@@ -102,27 +104,31 @@ body {
 }
 
 .low {
-  color: #fef08a;
+  color: #f4db1f;
   border: 1px solid #fef08a;
-  background: #fef08a30;
+  background: #ffe62530;
+  font-weight: 700;
 }
 
 .moderate {
   color: #facc15;
   border: 1px solid #facc15;
   background: #facc1530;
+  font-weight: 700;
 }
 
 .high {
   color: #f97316;
   border: 1px solid #f97316;
   background-color: #f9731630;
+  font-weight: 700;
 }
 
 .critical {
   color: #dc2626;
   border: 1px solid #dc2626;
   background-color: #dc262630;
+  font-weight: 700;
 }
 
 .mainElement{
@@ -243,6 +249,7 @@ body {
   background: var(--panelBackground);
   color: var(--foreground);
   font-size: 0.8rem;
+  border-radius: 10px;
 }
 
 .mapLegendToggle{
@@ -302,6 +309,43 @@ body {
 
 .mapLegendToggle:not(.isActive) .mapLegendSwatch{
   background: #9ca3af;
+}
+
+.mapDataStatus{
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  z-index: 1;
+  max-width: min(520px, calc(100% - 72px));
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  background: var(--panelBackground);
+  color: var(--foreground);
+  font-size: 0.75rem;
+  border-radius: 10px;
+}
+
+.locationDataStatus{
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+  color: var(--foreground);
+  font-size: 0.75rem;
+}
+
+.loadMoreLocations{
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  background: var(--panelBackground);
+  color: var(--foreground);
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+.loadMoreLocations:hover{
+  background: var(--hoverBackground);
 }
 
 .mapClose{
@@ -465,10 +509,46 @@ input:focus {
 .High,
 .Moderate,
 .Low{
-  padding: 6px 10px;
+  padding: 10px 20px;
   border-radius: 10px;
   cursor: pointer;
-  border: none !important;
+  border: 1px solid transparent;
+}
+
+.Critical:hover{
+  box-shadow: 0 0 10px #dc2626;
+}
+
+.Critical.active{
+  box-shadow: 0 0 10px #dc2626;
+  border: 1px solid #dc2626;
+}
+
+.High:hover{
+  box-shadow: 0 0 10px #f97316;
+}
+
+.High.active{
+  box-shadow: 0 0 10px #f97316;
+  border-color: #f97316;
+}
+
+.Moderate:hover{
+  box-shadow: 0 0 10px #eab308;
+}
+
+.Moderate.active{
+  box-shadow: 0 0 10px #eab308;
+  border-color: #eab308;
+}
+
+.Low:hover{
+  box-shadow: 0 0 10px #84cc16;
+}
+
+.Low.active{
+  box-shadow: 0 0 10px #84cc16;
+  border-color: #84cc16;
 }
 
 .locations{
@@ -503,6 +583,7 @@ input:focus {
 .riskIndiLoc{
   padding: 4px 6px;
   border-radius: 10px;
+  font-size: 0.8rem;
 }
 
 .locIndicators{
@@ -770,6 +851,231 @@ input:focus {
   font-size: clamp(1.05rem, 1.8vw, 1.35rem);
 }
 
+.fireCalendarCard {
+  min-width: 0;
+  padding: clamp(14px, 1.6vw, 20px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panelBackground);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+}
+
+.fireCalendarHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.fireCalendarHeader h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.fireCalendarHeader p,
+.fireCalendarNote {
+  margin: 6px 0 0;
+  color: #737373;
+  font-size: 0.85rem;
+}
+
+.fireCalendarExport,
+.fireCalendarFilterActions button {
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--foreground);
+  background: var(--panelBackground);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fireCalendarExport:disabled,
+.fireCalendarFilterActions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.fireCalendarFilters {
+  display: grid;
+  grid-template-columns: minmax(230px, 1fr) minmax(360px, 2fr);
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.fireCalendarFilterGroup,
+.fireCalendarArea {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.fireCalendarFilterGroup label,
+.fireCalendarArea label {
+  display: grid;
+  gap: 5px;
+  color: var(--foreground);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.fireCalendarFilterGroup input,
+.fireCalendarArea input {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 8px 9px;
+  font-size: 0.85rem;
+}
+
+.fireCalendarArea {
+  grid-column: 2;
+  grid-row: 1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding: 8px 10px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.fireCalendarArea legend {
+  padding: 0 5px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.fireCalendarFilterActions {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 12px;
+}
+
+.fireCalendarFilterActions span {
+  color: #737373;
+  font-size: 0.78rem;
+}
+
+.fireCalendarSummary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 12px 0;
+  color: #737373;
+  font-size: 0.8rem;
+}
+
+.fireCalendarScroll {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.fireCalendarGrid {
+  display: grid;
+  min-width: 900px;
+  gap: 5px;
+}
+
+.fireCalendarRow {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 58px repeat(12, minmax(62px, 1fr));
+  gap: 5px;
+}
+
+.fireCalendarYearLabel,
+.fireCalendarMonthLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.fireCalendarCell {
+  display: flex;
+  min-height: 62px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid rgb(0 0 0 / 8%);
+  border-radius: 6px;
+  color: #172012;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.fireCalendarCell strong {
+  font-size: 0.9rem;
+}
+
+.fireCalendarCell span {
+  font-size: 0.64rem;
+  line-height: 1.2;
+}
+
+.fireCalendarCell--0,
+.fireCalendarLegendSwatch.fireCalendarCell--0 {
+  background: #a5d6a7;
+}
+
+.fireCalendarCell--1,
+.fireCalendarLegendSwatch.fireCalendarCell--1 {
+  background: #66bb6a;
+}
+
+.fireCalendarCell--2,
+.fireCalendarLegendSwatch.fireCalendarCell--2 {
+  background: #ffeb3b;
+}
+
+.fireCalendarCell--3,
+.fireCalendarLegendSwatch.fireCalendarCell--3 {
+  background: #fb8c00;
+}
+
+.fireCalendarCell--4,
+.fireCalendarLegendSwatch.fireCalendarCell--4 {
+  color: #fff;
+  background: #c62828;
+}
+
+.fireCalendarCell--empty {
+  border-style: dashed;
+  background: transparent;
+}
+
+.fireCalendarLegend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+  color: #737373;
+  font-size: 0.75rem;
+}
+
+.fireCalendarLegendSwatch {
+  width: 18px;
+  height: 14px;
+  border: 1px solid rgb(0 0 0 / 10%);
+  border-radius: 3px;
+}
+
+.fireCalendarNote {
+  line-height: 1.45;
+}
+
+.fireCalendarError {
+  margin: 8px 0;
+  color: #dc2626;
+  font-size: 0.85rem;
+}
+
 .fireChartCard {
   display: flex;
   min-height: 0;
@@ -784,15 +1090,85 @@ input:focus {
   font-weight: 600;
 }
 
+.fireChartCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.fireChartCardHeader .fireChartTitle {
+  margin: 0;
+}
+
+.fireChartZoomControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.fireChartZoomRange {
+  color: #737373;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.fireChartZoomControls button {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--foreground);
+  background: var(--panelBackground);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fireChartZoomControls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .fireChartPlot {
   width: 100%;
   height: clamp(220px, 30vh, 320px);
   min-width: 0;
 }
 
+.fireChartCard--daily,
+.fireChartCard--satellite {
+  grid-column: 1 / -1;
+}
+
+.fireChartCard--daily .fireChartPlot {
+  height: clamp(360px, 52vh, 500px);
+}
+
+.fireChartCard--satellite .fireChartPlot {
+  height: clamp(360px, 46vh, 460px);
+}
+
+.fireChartCard--satellite .recharts-legend-item {
+  cursor: pointer;
+}
+
 @media (max-width: 1100px) {
   .fireStatsGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fireCalendarFilters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fireCalendarArea {
+    grid-column: auto;
+    grid-row: auto;
   }
 
   .fireChartsGrid {
@@ -810,6 +1186,30 @@ input:focus {
   .fireDashboardHeader {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .fireCalendarHeader {
+    flex-direction: column;
+  }
+
+  .fireCalendarFilterGroup,
+  .fireCalendarArea {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fireCalendarFilterActions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .fireChartCardHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .fireChartCard--daily .fireChartPlot,
+  .fireChartCard--satellite .fireChartPlot {
+    height: 340px;
   }
 
   .fireTemperatureGrid {

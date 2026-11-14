@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Map, setWorkerUrl, type GeoJSONSource, LngLatBounds } from "maplibre-gl";
+import {
+  Map,
+  setWorkerUrl,
+  type GeoJSONSource,
+  type MapLayerMouseEvent,
+  LngLatBounds,
+} from "maplibre-gl";
 import type { FireData, SensorFamily } from "@/hooks/useFireData";
 import type { FeatureCollection, Point } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -14,10 +20,10 @@ setWorkerUrl(
 );
 
 interface MapComponentProps {
-  fires: FireData[];
   selectedCountry: string;
   long: number | null;
   lat: number | null;
+  selectedYear: string;
   activeRisk: string | null;
   selectedFire: FireData | null;
   onSelectFire: (fire: FireData | null) => void;
@@ -26,9 +32,8 @@ interface MapComponentProps {
 }
 
 type FireProperties = {
-  fireData: string;
-  riskScore: number;
-  sensorFamily: "MODIS" | "VIIRS";
+  sensorFamily: SensorFamily;
+  fireId: number;
 };
 
 function calculateFireRisk(fire: FireData) {
@@ -74,49 +79,9 @@ function getSensorFamily(fire: FireData): SensorFamily {
   return fire.sensor_family ?? (fire.brightness != null ? "MODIS" : "VIIRS");
 }
 
-function filterFires(
-  fires: FireData[],
-  activeRisk: string | null,
-  visibleSensorFamilies: SensorFamily[]
-) {
-  return fires.filter(
-    (fire) =>
-      visibleSensorFamilies.includes(getSensorFamily(fire)) &&
-      (!activeRisk ||
-        calculateFireRisk(fire).level.toLowerCase() ===
-          activeRisk.toLowerCase())
-  );
-}
-
-function createFireGeoJSON(
-  fires: FireData[]
-): FeatureCollection<Point, FireProperties> {
-  return {
-    type: "FeatureCollection",
-
-    features: fires.map((fire) => ({
-      type: "Feature",
-
-      geometry: {
-        type: "Point",
-        coordinates: [
-          fire.longitude,
-          fire.latitude,
-        ],
-      },
-
-      properties: {
-        fireData: JSON.stringify(fire),
-        riskScore: calculateFireRisk(fire).score,
-        sensorFamily: getSensorFamily(fire),
-      },
-    })),
-  };
-}
-
 function updateFireSource(
   map: Map,
-  fires: FireData[]
+  data: FeatureCollection<Point, FireProperties>
 ) {
   const source = map.getSource("fires") as
     | GeoJSONSource
@@ -124,7 +89,7 @@ function updateFireSource(
 
   if (!source) return;
 
-  source.setData(createFireGeoJSON(fires));
+  source.setData(data);
 }
 
 function addPulsingLocation(map: Map) {
@@ -163,7 +128,7 @@ function addPulsingLocation(map: Map) {
       "circle-radius": 7,
       "circle-color": "#f97316",
 
-      "circle-stroke-width": 3,
+      "circle-stroke-width": 2,
       "circle-stroke-color": "#ffffff",
     },
   });
@@ -249,10 +214,10 @@ function clearSelectedLocation(map: Map) {
 }
 
 export default function MapComponent({
-  fires,
   selectedCountry,
   long,
   lat,
+  selectedYear,
   activeRisk,
   selectedFire,
   onSelectFire,
@@ -266,6 +231,7 @@ export default function MapComponent({
   const animationCleanup = useRef<(() => void) | null>(null);
 
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -278,6 +244,7 @@ export default function MapComponent({
       center: [80.7718, 7.8731],
       zoom: 7,
       minZoom: 0,
+      maxZoom: 22,
       renderWorldCopies: false,
     });
 
@@ -300,30 +267,19 @@ export default function MapComponent({
         id: "fire-points",
         type: "circle",
         source: "fires",
-
         paint: {
           "circle-radius": [
             "interpolate",
             ["linear"],
             ["zoom"],
-            5, 3,
+            5, 4,
             10, 6,
             15, 9,
           ],
 
-          "circle-color": [
-            "match",
-            ["get", "sensorFamily"],
-            "MODIS", "#3b82f6",
-            "#f97316",
-          ],
-          "circle-stroke-width": 3,
-          "circle-stroke-color": [
-            "match",
-            ["get", "sensorFamily"],
-            "MODIS", "#3b82f6",
-            "#f97316",
-          ],
+          "circle-color": ["match", ["get", "sensorFamily"], "MODIS", "#3b82f6", "#f97316"],
+          "circle-stroke-width": 2,
+          "circle-stroke-color": ["match", ["get", "sensorFamily"], "MODIS", "#3b82f6", "#f97316"],
         },
       });
 
@@ -337,18 +293,40 @@ export default function MapComponent({
       setMapLoaded(true);
 
       // CLICK FIRE POINT
-      map.on("click", "fire-points", (event) => {
+      const handleFireClick = (event: MapLayerMouseEvent) => {
         const feature = event.features?.[0];
 
-        if (!feature?.properties?.fireData) return;
+        if (!feature || feature.geometry.type !== "Point") return;
 
-        const fire: FireData = JSON.parse(
-          feature.properties.fireData
-        );
+        const fireId = Number(feature.properties?.fireId);
+        if (!Number.isSafeInteger(fireId) || fireId < 0) return;
 
-        onSelectFire(fire);
-        updateSelectedLocation(map, fire.longitude, fire.latitude);
-      });
+        fetch(
+          `http://localhost:9000/api/fire/data?offset=${fireId}&limit=1`
+        )
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`Fire details request failed (${response.status})`);
+            }
+            return response.json() as Promise<{ data: FireData[] }>;
+          })
+          .then(({ data }) => {
+            const fire = data[0];
+            if (!fire) {
+              throw new Error(`No fire record found for row ${fireId}.`);
+            }
+
+            onSelectFire(fire);
+            updateSelectedLocation(map, fire.longitude, fire.latitude);
+            setMapError(null);
+          })
+          .catch((error: unknown) => {
+            console.error("Unable to load fire details:", error);
+            setMapError("Unable to load this detection's details.");
+          });
+      };
+
+      map.on("click", "fire-points", handleFireClick);
 
       // POINTER CURSOR
       map.on("mouseenter", "fire-points", () => {
@@ -379,18 +357,62 @@ export default function MapComponent({
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return;
 
-    const filteredFires = filterFires(
-      fires,
-      activeRisk,
-      visibleSensorFamilies
-    );
+    const map = mapRef.current;
+    let activeController: AbortController | null = null;
 
-    updateFireSource(
-      mapRef.current,
-      filteredFires
-    );
+    const loadVisibleFires = () => {
+      activeController?.abort();
 
-  }, [fires, activeRisk, visibleSensorFamilies, mapLoaded]);
+      const controller = new AbortController();
+      activeController = controller;
+      const bounds = map.getBounds();
+      const params = new URLSearchParams({
+        west: String(bounds.getWest()),
+        south: String(bounds.getSouth()),
+        east: String(bounds.getEast()),
+        north: String(bounds.getNorth()),
+        sensors: visibleSensorFamilies.join(","),
+      });
+
+      if (selectedYear !== "all") params.set("year", selectedYear);
+      if (activeRisk) params.set("risk", activeRisk);
+
+      fetch(`http://localhost:9000/api/fire/map?${params}`, {
+        signal: controller.signal,
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Map data request failed (${response.status})`);
+          }
+          return response.json() as Promise<
+            FeatureCollection<Point, FireProperties>
+          >;
+        })
+        .then((data) => {
+          if (controller.signal.aborted) return;
+          updateFireSource(map, data);
+          setMapError(null);
+        })
+        .catch((error: unknown) => {
+          if (error instanceof Error && error.name === "AbortError") return;
+          console.error("Map data request error:", error);
+          setMapError("Unable to load detections for this map view.");
+        });
+    };
+
+    map.on("moveend", loadVisibleFires);
+    loadVisibleFires();
+
+    return () => {
+      map.off("moveend", loadVisibleFires);
+      activeController?.abort();
+    };
+  }, [
+    activeRisk,
+    mapLoaded,
+    selectedYear,
+    visibleSensorFamilies,
+  ]);
 
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return;
@@ -525,7 +547,7 @@ export default function MapComponent({
           onClick={() => onToggleSensorFamily("VIIRS")}
         >
           <i className="mapLegendSwatch mapLegendSwatch--viirs" />
-          <span>VIIRS / dataset_01</span>
+          <span>VIIRS datasets</span>
         </button>
         <button
           type="button"
@@ -536,8 +558,12 @@ export default function MapComponent({
           onClick={() => onToggleSensorFamily("MODIS")}
         >
           <i className="mapLegendSwatch mapLegendSwatch--modis" />
-          <span>MODIS / dataset_02</span>
+          <span>MODIS datasets</span>
         </button>
+      </div>
+
+      <div className="mapDataStatus" role={mapError ? "alert" : "status"}>
+        {mapError ?? "Showing exact locations for every filtered detection in this view."}
       </div>
 
       <div className="zoomTools">
@@ -585,6 +611,7 @@ export default function MapComponent({
 
             <p>Latitude: {selectedFire.latitude}</p>
             <p>Longitude: {selectedFire.longitude}</p>
+            <p>Dataset: {selectedFire.dataset_name ?? "Unknown"}</p>
             <p>
               {selectedFire.sensor_family === "MODIS"
                 ? "Brightness (MODIS)"
