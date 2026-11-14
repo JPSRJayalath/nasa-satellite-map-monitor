@@ -4,6 +4,8 @@
 :root {
   --background: #ededed;
   --foreground: #171717;
+  --panelBackground: #ffffff;
+  --border: #707070;
 }
 
 @theme inline {
@@ -85,6 +87,41 @@ body {
   padding: 0 40px 10px 10px;
 }
 
+.indic{
+  margin-bottom: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.low {
+  color: #fef08a;
+  border: 1px solid #fef08a;
+  background: #fef08a30;
+}
+
+.moderate {
+  color: #facc15;
+  border: 1px solid #facc15;
+  background: #facc1530;
+}
+
+.high {
+  color: #f97316;
+  border: 1px solid #f97316;
+  background-color: #f9731630;
+}
+
+.critical {
+  color: #dc2626;
+  border: 1px solid #dc2626;
+  background-color: #dc262630;
+}
+
 .mainElement{
   display: flex;
   flex-direction: column;
@@ -135,34 +172,6 @@ body {
   gap: 10px;padding: 10px;
 }
 
-.mapControlers{
-  width: 100%;
-  height: 100%;
-  background: var(--panelBackground);
-  border-radius: 12px;
-  padding: 10px;
-}
-
-.mapControlers > h2{
-  font-size: 2rem;
-}
-
-input {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid #333;
-  border-radius: 6px;
-  background: #111;
-  color: white;
-  outline: none;
-}
-
-input:focus {
-  border-color: #666;
-}
-
-
-
 .mapContainer{
   width: 100%;
   height: 100%;
@@ -193,16 +202,41 @@ input:focus {
 
 .MainOptionPanel{
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   gap: 20px;
   align-items: center;
   justify-content: center;
+  width: 100vw;
+  height: 100vh;
+}
+
+.logoContainer{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  width: auto;
+  position: absolute;
+  top: 60px;
+}
+
+.logo{
+  width: 200px;
+}
+
+.logoContainer > h1{
+  font-size: 3rem;
+}
+
+.optionsContainer{
+  display: flex;
+  flex-direction: row;
 }
 
 .mapOpen,
 .analyzePanelOpen{
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--foreground);
 }
 
 .mapOpen:hover,
@@ -228,10 +262,91 @@ input:focus {
 .chartIMG > svg{
   width: 100px;
   height: 100px;
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: 10px;
 }
 
 .chartSVG{
   fill: var(--foreground);
+}
+
+.mapControlers{
+  width: 100%;
+  height: 100%;
+  background: var(--panelBackground);
+  border-radius: 12px;
+  padding: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.mapControlers > h2{
+  font-size: 2rem;
+}
+
+input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: var(--panelBackground);
+  color: var(--foreground);
+  outline: none;
+}
+
+input:focus {
+  border-color: #666;
+}
+
+.riskRatio{
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-evenly;
+  padding: 10px;
+}
+
+.Critical,
+.High,
+.Moderate,
+.Low{
+  padding: 6px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: none !important;
+}
+
+.locations{
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  height: 200px;
+  border: 1px solid rgb(200, 200, 200);
+  border-radius: 10px;
+  width: 100%;
+}
+
+.loc{
+  overflow-y: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-direction: row;
+  border-bottom: 1px solid rgb(200, 200, 200);
+  padding: 10px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.locDetails{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.riskIndiLoc{
+  padding: 4px 6px;
+  border-radius: 9999px;
 }
