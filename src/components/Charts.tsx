@@ -5,6 +5,7 @@ import { useFireData } from "@/hooks/useFireData";
 import {
   ResponsiveContainer,
   BarChart,
+  ComposedChart,
   Bar,
   LineChart,
   Line,
@@ -36,7 +37,7 @@ function ChartCard({
 }
 
 export default function FireDashboard() {
-  const { fires, analytics, connected, loading, err } = useFireData();
+  const { analytics, connected, loading, err } = useFireData("analytics");
 
   if (loading && !analytics) {
     return (
@@ -88,8 +89,8 @@ export default function FireDashboard() {
     <main className="fireDashboard">
       <header className="fireDashboardHeader">
         <div className="fireDashboardHeading">
-          <h1>VIIRS Fire Monitoring</h1>
-          <p>Satellite Fire Detection &amp; Analytics Dashboard</p>
+          <h1>Multi-Sensor Fire Monitoring</h1>
+          <p>Combined VIIRS and MODIS fire detection analytics</p>
         </div>
 
         <div className="fireConnectionStatus">
@@ -115,47 +116,78 @@ export default function FireDashboard() {
         ))}
       </section>
 
-      <section className="fireTemperatureGrid" aria-label="Average brightness">
-        <article className="fireTemperatureCard">
-          <p>Average Brightness TI4</p>
-          <h2>{stats.average_ti4} K</h2>
-        </article>
-        <article className="fireTemperatureCard">
-          <p>Average Brightness TI5</p>
-          <h2>{stats.average_ti5} K</h2>
-        </article>
+      <section className="fireTemperatureGrid" aria-label="Average brightness by dataset">
+        {analytics.brightness_distribution.map((source) => (
+          <article className="fireTemperatureCard" key={source.dataset}>
+            <p>{source.sensor_family} / {source.dataset}</p>
+            <div className="fireTemperatureValues">
+              <div>
+                <span>{source.channel_1_name}</span>
+                <strong>{source.channel_1_average} K</strong>
+              </div>
+              <div>
+                <span>{source.channel_2_name}</span>
+                <strong>{source.channel_2_average} K</strong>
+              </div>
+            </div>
+          </article>
+        ))}
       </section>
 
-      <div className="fireChartsGrid">
-        <ChartCard title="Fire Radiative Power">
+      <div
+        className="fireChartsGrid"
+        role="group"
+        aria-label="Fire analytics chart gallery"
+      >
+        <ChartCard title="Daily Detections & Average FRP">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={analytics.frp_distribution}>
+            <ComposedChart data={analytics.frp_distribution}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
-              <YAxis />
+              <YAxis yAxisId="detections" allowDecimals={false} />
+              <YAxis yAxisId="frp" orientation="right" />
               <Tooltip />
               <Legend />
               <Bar
-                dataKey="total_frp"
-                name="Total FRP (MW)"
+                yAxisId="detections"
+                dataKey="fire_count"
+                name="Fire detections"
                 fill="#f97316"
                 radius={[5, 5, 0, 0]}
                 isAnimationActive={false}
               />
-            </BarChart>
+              <Line
+                yAxisId="frp"
+                type="monotone"
+                dataKey="average_frp"
+                name="Average FRP (MW)"
+                stroke="#3b82f6"
+                strokeWidth={3}
+                dot
+                isAnimationActive={false}
+              />
+            </ComposedChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Brightness Temperature">
+        <ChartCard title="Average Brightness by Dataset">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={analytics.temperature}>
+            <BarChart data={analytics.brightness_distribution}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
+              <XAxis dataKey="dataset" />
               <YAxis />
               <Tooltip />
+              <Legend />
               <Bar
-                dataKey="value"
-                name="Temperature (K)"
+                dataKey="channel_1_average"
+                name="Channel 1 average (K)"
+                fill="#f97316"
+                radius={[5, 5, 0, 0]}
+                isAnimationActive={false}
+              />
+              <Bar
+                dataKey="channel_2_average"
+                name="Channel 2 average (K)"
                 fill="#3b82f6"
                 radius={[5, 5, 0, 0]}
                 isAnimationActive={false}
@@ -209,6 +241,30 @@ export default function FireDashboard() {
               <Tooltip />
               <Legend />
             </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Detections by Dataset">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={analytics.source_distribution}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="dataset" />
+              <YAxis />
+              <Tooltip />
+              <Bar
+                dataKey="fire_count"
+                name="Fire detections"
+                radius={[5, 5, 0, 0]}
+                isAnimationActive={false}
+              >
+                {analytics.source_distribution.map((source) => (
+                  <Cell
+                    key={source.dataset}
+                    fill={source.sensor_family === "MODIS" ? "#3b82f6" : "#f97316"}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
         </ChartCard>
 

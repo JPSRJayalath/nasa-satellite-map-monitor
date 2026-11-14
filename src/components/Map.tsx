@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Map, setWorkerUrl, type GeoJSONSource, LngLatBounds } from "maplibre-gl";
-import type { FireData } from "@/hooks/useFireData";
+import type { FireData, SensorFamily } from "@/hooks/useFireData";
 import type { FeatureCollection, Point } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -19,11 +19,16 @@ interface MapComponentProps {
   long: number | null;
   lat: number | null;
   activeRisk: string | null;
+  selectedFire: FireData | null;
+  onSelectFire: (fire: FireData | null) => void;
+  visibleSensorFamilies: SensorFamily[];
+  onToggleSensorFamily: (sensorFamily: SensorFamily) => void;
 }
 
 type FireProperties = {
   fireData: string;
   riskScore: number;
+  sensorFamily: "MODIS" | "VIIRS";
 };
 
 function calculateFireRisk(fire: FireData) {
@@ -65,16 +70,21 @@ function calculateFireRisk(fire: FireData) {
   };
 }
 
+function getSensorFamily(fire: FireData): SensorFamily {
+  return fire.sensor_family ?? (fire.brightness != null ? "MODIS" : "VIIRS");
+}
+
 function filterFires(
   fires: FireData[],
-  activeRisk: string | null
+  activeRisk: string | null,
+  visibleSensorFamilies: SensorFamily[]
 ) {
-  if (!activeRisk) return fires;
-
   return fires.filter(
     (fire) =>
-      calculateFireRisk(fire).level.toLowerCase() ===
-      activeRisk.toLowerCase()
+      visibleSensorFamilies.includes(getSensorFamily(fire)) &&
+      (!activeRisk ||
+        calculateFireRisk(fire).level.toLowerCase() ===
+          activeRisk.toLowerCase())
   );
 }
 
@@ -98,6 +108,7 @@ function createFireGeoJSON(
       properties: {
         fireData: JSON.stringify(fire),
         riskScore: calculateFireRisk(fire).score,
+        sensorFamily: getSensorFamily(fire),
       },
     })),
   };
@@ -226,21 +237,33 @@ function updateSelectedLocation(
   });
 }
 
+function clearSelectedLocation(map: Map) {
+  const source = map.getSource(
+    "selected-location"
+  ) as GeoJSONSource | undefined;
+
+  source?.setData({
+    type: "FeatureCollection",
+    features: [],
+  });
+}
+
 export default function MapComponent({
   fires,
   selectedCountry,
   long,
   lat,
   activeRisk,
+  selectedFire,
+  onSelectFire,
+  visibleSensorFamilies,
+  onToggleSensorFamily,
 }: MapComponentProps) {
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
 
   const animationCleanup = useRef<(() => void) | null>(null);
-
-  const [selectedFire, setSelectedFire] =
-    useState<FireData | null>(null);
 
   const [mapLoaded, setMapLoaded] = useState(false);
 
@@ -254,6 +277,8 @@ export default function MapComponent({
 
       center: [80.7718, 7.8731],
       zoom: 7,
+      minZoom: 0,
+      renderWorldCopies: false,
     });
 
     mapRef.current = map;
@@ -286,9 +311,19 @@ export default function MapComponent({
             15, 9,
           ],
 
-          "circle-color": "#f97316",
+          "circle-color": [
+            "match",
+            ["get", "sensorFamily"],
+            "MODIS", "#3b82f6",
+            "#f97316",
+          ],
           "circle-stroke-width": 3,
-          "circle-stroke-color": "#f97316",
+          "circle-stroke-color": [
+            "match",
+            ["get", "sensorFamily"],
+            "MODIS", "#3b82f6",
+            "#f97316",
+          ],
         },
       });
 
@@ -311,7 +346,8 @@ export default function MapComponent({
           feature.properties.fireData
         );
 
-        setSelectedFire(fire);
+        onSelectFire(fire);
+        updateSelectedLocation(map, fire.longitude, fire.latitude);
       });
 
       // POINTER CURSOR
@@ -338,14 +374,15 @@ export default function MapComponent({
       map.remove();
     };
 
-  }, []);
+  }, [onSelectFire]);
 
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return;
 
     const filteredFires = filterFires(
       fires,
-      activeRisk
+      activeRisk,
+      visibleSensorFamilies
     );
 
     updateFireSource(
@@ -353,7 +390,15 @@ export default function MapComponent({
       filteredFires
     );
 
-  }, [fires, activeRisk, mapLoaded]);
+  }, [fires, activeRisk, visibleSensorFamilies, mapLoaded]);
+
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current) return;
+
+    if (!selectedFire || !visibleSensorFamilies.includes(getSensorFamily(selectedFire))) {
+      clearSelectedLocation(mapRef.current);
+    }
+  }, [selectedFire, visibleSensorFamilies, mapLoaded]);
 
   useEffect(() => {
     if (
@@ -470,13 +515,57 @@ export default function MapComponent({
         className="w-full h-full"
       />
 
+      <div className="mapLegend" aria-label="Toggle fire sensor datasets">
+        <button
+          type="button"
+          className={`mapLegendToggle mapLegendToggle--viirs ${
+            visibleSensorFamilies.includes("VIIRS") ? "isActive" : ""
+          }`}
+          aria-pressed={visibleSensorFamilies.includes("VIIRS")}
+          onClick={() => onToggleSensorFamily("VIIRS")}
+        >
+          <i className="mapLegendSwatch mapLegendSwatch--viirs" />
+          <span>VIIRS / dataset_01</span>
+        </button>
+        <button
+          type="button"
+          className={`mapLegendToggle mapLegendToggle--modis ${
+            visibleSensorFamilies.includes("MODIS") ? "isActive" : ""
+          }`}
+          aria-pressed={visibleSensorFamilies.includes("MODIS")}
+          onClick={() => onToggleSensorFamily("MODIS")}
+        >
+          <i className="mapLegendSwatch mapLegendSwatch--modis" />
+          <span>MODIS / dataset_02</span>
+        </button>
+      </div>
+
+      <div className="zoomTools">
+        <button
+          type="button"
+          className="zoomIn"
+          aria-label="Zoom in"
+          onClick={() => mapRef.current?.zoomIn()}
+        >
+          +
+        </button>
+        <button
+          type="button"
+          className="zoomOut"
+          aria-label="Zoom out"
+          onClick={() => mapRef.current?.zoomOut()}
+        >
+          −
+        </button>
+      </div>
+
       {/* FIRE DETAILS PANEL */}
       {selectedFire && (
         <div className="detailsPanel">
 
           <div className="macOSCloseControler">
             <button
-              onClick={() => setSelectedFire(null)}
+              onClick={() => onSelectFire(null)}
             >
               ×
             </button>
@@ -496,9 +585,27 @@ export default function MapComponent({
 
             <p>Latitude: {selectedFire.latitude}</p>
             <p>Longitude: {selectedFire.longitude}</p>
-            <p>Brightness TI4: {selectedFire.bright_ti4}</p>
-            <p>Brightness TI5: {selectedFire.bright_ti5}</p>
-            <p>Confidence: {selectedFire.confidence}</p>
+            <p>
+              {selectedFire.sensor_family === "MODIS"
+                ? "Brightness (MODIS)"
+                : "Brightness TI4"}
+              : {selectedFire.sensor_family === "MODIS"
+                ? selectedFire.brightness ?? selectedFire.bright_ti4
+                : selectedFire.bright_ti4}
+            </p>
+            <p>
+              {selectedFire.sensor_family === "MODIS"
+                ? "Brightness T31"
+                : "Brightness TI5"}
+              : {selectedFire.sensor_family === "MODIS"
+                ? selectedFire.bright_t31 ?? selectedFire.bright_ti5
+                : selectedFire.bright_ti5}
+            </p>
+            <p>
+              Confidence: {selectedFire.confidence_value ?? selectedFire.confidence}
+              {selectedFire.confidence_value != null ? "%" : ""}
+            </p>
+            <p>Sensor: {selectedFire.sensor_family ?? "VIIRS"}</p>
             <p>FRP: {selectedFire.frp}</p>
             <p>Date: {selectedFire.acq_date}</p>
             <p>Satellite: {selectedFire.satellite}</p>

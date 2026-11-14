@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 // FIRE DATA INTERFACE
 // ----------------------------------
 
+export type SensorFamily = "MODIS" | "VIIRS";
+
 export interface FireData {
     latitude: number;
     longitude: number;
@@ -17,6 +19,10 @@ export interface FireData {
     acq_time: string;
     satellite: string;
     confidence: number | string;
+    confidence_value?: number | null;
+    sensor_family?: SensorFamily;
+    brightness?: number | null;
+    bright_t31?: number | null;
     version: string;
     bright_ti5: number;
     frp: number;
@@ -38,6 +44,15 @@ export interface FireAnalyticsData {
         average_ti5: number;
     };
 
+    brightness_distribution: {
+        dataset: string;
+        sensor_family: "MODIS" | "VIIRS";
+        channel_1_name: string;
+        channel_1_average: number;
+        channel_2_name: string;
+        channel_2_average: number;
+    }[];
+
     frp_distribution: {
         date: string;
         total_frp: number;
@@ -53,6 +68,13 @@ export interface FireAnalyticsData {
     satellite_distribution: {
         name: string;
         count: number;
+    }[];
+
+    source_distribution: {
+        dataset: string;
+        sensor_family: "MODIS" | "VIIRS";
+        fire_count: number;
+        total_frp: number;
     }[];
 
     confidence_distribution: {
@@ -82,7 +104,7 @@ export interface FireAnalyticsData {
 // WEBSOCKET HOOK
 // ----------------------------------
 
-export function useFireData() {
+export function useFireData(category: "analytics" | "any" = "any") {
 
     const [fires, setFires] = useState<FireData[]>([]);
 
@@ -123,7 +145,7 @@ export function useFireData() {
                 ws?.send(JSON.stringify({
                     app: "NASA Fire Monitor",
                     permission: "read",
-                    category: "any"
+                    category
                 }));
             };
 
@@ -232,7 +254,7 @@ export function useFireData() {
             }
         };
 
-    }, []);
+    }, [category]);
 
     return {
         fires,

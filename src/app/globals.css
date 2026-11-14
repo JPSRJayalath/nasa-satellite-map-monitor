@@ -7,6 +7,7 @@
   --foreground: #171717;
   --panelBackground: #ffffff;
   --border: #707070;
+  --hoverBackground: rgba(0, 0, 0, 0.2)
 }
 
 @theme inline {
@@ -22,7 +23,7 @@
     --panelBackground: #1d1d1d;
     --foreground: #ededed;
     --border: rgb(120, 120, 120);
-    --hoverbackground: rgba(255, 255, 255, 0.2);
+    --hoverBackground: rgba(255, 255, 255, 0.2);
     --plainBackground: #1d1d1d;
   }
 }
@@ -191,6 +192,118 @@ body {
   border-radius: 12px;
 }
 
+.mapContent{
+  position: relative;
+}
+
+.zoomTools{
+  background: var(--plainBackground);
+  color: var(--foreground);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  border-radius: 10px;
+}
+
+.zoomTools > button{
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.zoomTools > button:hover{
+  background: var(--hoverBackground);
+}
+
+.zoomIn{
+  border-radius: 10px 10px 0 0;
+  /* border-bottom: 1px solid var(--foreground); */
+}
+
+.zoomOut{
+  border-radius: 0 0 10px 10px;
+  border-top: 1px solid var(--foreground);
+}
+
+.mapLegend{
+  position: absolute;
+  top: 12px;
+  left: 48px;
+  z-index: 1;
+  display: flex;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  background: var(--panelBackground);
+  color: var(--foreground);
+  font-size: 0.8rem;
+}
+
+.mapLegendToggle{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  background: transparent;
+  color: #737373;
+  font: inherit;
+  cursor: pointer;
+  opacity: 0.65;
+}
+
+.mapLegendToggle:hover,
+.mapLegendToggle:focus-visible{
+  opacity: 1;
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+
+.mapLegendToggle.isActive,
+.mapLegendToggle.isActive:hover{
+  border-color: currentColor;
+  opacity: 1;
+}
+
+.mapLegendToggle--viirs.isActive,
+.mapLegendToggle--viirs.isActive:hover,
+.mapLegendToggle--viirs.isActive:focus-visible{
+  background: #f9731620;
+  color: #f97316;
+}
+
+.mapLegendToggle--modis.isActive,
+.mapLegendToggle--modis.isActive:hover{
+  background: #3b82f620;
+  color: #3b82f6;
+}
+
+.mapLegendSwatch{
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.mapLegendSwatch--viirs{
+  background: #f97316;
+}
+
+.mapLegendSwatch--modis{
+  background: #3b82f6;
+}
+
+.mapLegendToggle:not(.isActive) .mapLegendSwatch{
+  background: #9ca3af;
+}
+
 .mapClose{
   width: 14px;
   height: 14px;
@@ -251,7 +364,7 @@ body {
 
 .mapOpen:hover,
 .analyzePanelOpen:hover{
-  background: var(--hoverbackground);
+  background: var(--hoverBackground);
   border-radius: 10px;
 }
 
@@ -318,6 +431,26 @@ input:focus {
   border-color: #666;
 }
 
+.yearFilter{
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.yearFilter > label{
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.yearFilter > select{
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: var(--panelBackground);
+  color: var(--foreground);
+}
+
 .riskRatio{
   display: flex;
   width: 100%;
@@ -369,7 +502,34 @@ input:focus {
 
 .riskIndiLoc{
   padding: 4px 6px;
+  border-radius: 10px;
+}
+
+.locIndicators{
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.sensorIndi{
+  padding: 3px 6px;
+  border: 1px solid currentColor;
   border-radius: 9999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sensorIndi--modis{
+  color: #3b82f6;
+  background: #3b82f630;
+}
+
+.sensorIndi--viirs{
+  color: #f97316;
+  background: #f9731630;
 }
 
 
@@ -527,7 +687,7 @@ input:focus {
 }
 
 .fireChartsGrid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
 }
 
@@ -586,9 +746,28 @@ input:focus {
   padding: 16px 20px;
 }
 
-.fireTemperatureCard h2 {
-  margin: 8px 0 0;
-  font-size: clamp(1.25rem, 2vw, 1.6rem);
+.fireTemperatureValues {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.fireTemperatureValues > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fireTemperatureValues span {
+  color: #737373;
+  font-size: 0.8rem;
+}
+
+.fireTemperatureValues strong {
+  overflow-wrap: anywhere;
+  font-size: clamp(1.05rem, 1.8vw, 1.35rem);
 }
 
 .fireChartCard {
@@ -615,6 +794,10 @@ input:focus {
   .fireStatsGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .fireChartsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 850px) {
@@ -631,6 +814,10 @@ input:focus {
 
   .fireTemperatureGrid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fireTemperatureValues {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

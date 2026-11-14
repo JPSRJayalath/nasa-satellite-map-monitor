@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useFireData, FireData } from "@/hooks/useFireData";
+import { useFireData, type FireData, type SensorFamily } from "@/hooks/useFireData";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import FireAnalytics from "@/components/Charts";
@@ -13,6 +13,10 @@ interface Country {
 }
 
 type FireRiskFilter = "critical" | "high" | "moderate" | "low";
+
+function getSensorFamily(fire: FireData): SensorFamily {
+  return fire.sensor_family ?? (fire.brightness != null ? "MODIS" : "VIIRS");
+}
 
 const MapComponent = dynamic(() => import("@/components/Map"),
   {
@@ -30,8 +34,14 @@ export default function Home() {
   const [isMapVisible, setIsMapVisible] = useState<boolean>(false);
   const [isMainOptionPanel, setIsMainOptionPanel] = useState<boolean>(true);
   const [isAnalyzePanel, setIsAnalyzePanel] = useState<boolean>(false);
+  const [selectedFire, setSelectedFire] = useState<FireData | null>(null);
+  const [visibleSensorFamilies, setVisibleSensorFamilies] = useState<SensorFamily[]>([
+    "VIIRS",
+    "MODIS",
+  ]);
   const [countries, setCounries] = useState<string[]>([]);
   const [selectedContry, setSelectedCountry] = useState("");
+  const [selectedYear, setSelectedYear] = useState("all");
   const [isLong, setIsLong] = useState<number | null>(null);
   const [isLat, setIsLat] = useState<number | null>(null);
   const [isActiveRisk, setIsActiveRisk] = useState<FireRiskFilter | null>(null);
@@ -75,6 +85,22 @@ export default function Home() {
     };
   }
 
+  function toggleSensorFamily(sensorFamily: SensorFamily) {
+    const isVisible = visibleSensorFamilies.includes(sensorFamily);
+
+    setVisibleSensorFamilies((current) =>
+      isVisible
+        ? current.filter((family) => family !== sensorFamily)
+        : [...current, sensorFamily]
+    );
+
+    if (isVisible && selectedFire && getSensorFamily(selectedFire) === sensorFamily) {
+      setSelectedFire(null);
+      setIsLong(null);
+      setIsLat(null);
+    }
+  }
+
   useEffect(() => {
     fetch('/countries.geojson')
     .then((res) => res.json())
@@ -86,7 +112,23 @@ export default function Home() {
     });
   }, []);
 
-  const visibleFires = fires.filter(
+  const availableYears = Array.from(
+    new Set(
+      fires.flatMap((fire) => {
+        const year = fire.acq_date?.slice(0, 4);
+        return year && /^\d{4}$/.test(year) ? [year] : [];
+      })
+    )
+  ).sort((yearA, yearB) => Number(yearB) - Number(yearA));
+
+  const yearFilteredFires = fires.filter(
+    (fire) =>
+      visibleSensorFamilies.includes(getSensorFamily(fire)) &&
+      (selectedYear === "all" ||
+        (fire.acq_date ?? "").startsWith(selectedYear))
+  );
+
+  const visibleFires = yearFilteredFires.filter(
     (fire) =>
       isActiveRisk === null ||
       calculateFireRisk(fire).level.toLowerCase() === isActiveRisk
@@ -169,6 +211,21 @@ export default function Home() {
                   <option key={country} value={country} />
                 ))}
               </datalist>
+              <div className="yearFilter">
+                <label htmlFor="fire-year">Year</label>
+                <select
+                  id="fire-year"
+                  value={selectedYear}
+                  onChange={(event) => setSelectedYear(event.target.value)}
+                >
+                  <option value="all">All years</option>
+                  {availableYears.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="riskRatio">
                 <button onClick={() => setIsActiveRisk(null)} className="Critical critical">All</button>
                 <button onClick={() => setIsActiveRisk("critical")} className="Critical critical">Critical</button>
@@ -177,31 +234,52 @@ export default function Home() {
                 <button onClick={() => setIsActiveRisk("low")} className="Low low">Low</button>
               </div>
               <div className="locations">
-                {visibleFires.map((loc) => (
-                  <div
-                    onClick={() => {
-                      setIsLat(loc.latitude);
-                      setIsLong(loc.longitude);
-                    }}
-                    className="loc"
-                    key={`${loc.latitude}-${loc.longitude}-${loc.acq_date}-${loc.acq_time}-${loc.satellite}`}
-                  >
-                    <div className="locDetails">
-                      <span>Longitude: {loc.longitude}</span>
-                      <span>Latitude: {loc.latitude}</span>
-                    </div>
+                {visibleFires.map((loc) => {
+                  const sensorFamily =
+                    loc.sensor_family ?? (loc.brightness != null ? "MODIS" : "VIIRS");
+                  const datasetLabel =
+                    sensorFamily === "MODIS" ? "MODIS / dataset_02" : "VIIRS / dataset_01";
 
-                    <div>
-                      <span className={`riskIndiLoc ${calculateFireRisk(loc).level.toLowerCase()}`}>
-                        {calculateFireRisk(loc).level}
-                      </span>
+                  return (
+                    <div
+                      onClick={() => {
+                        setSelectedFire(loc);
+                        setIsLat(loc.latitude);
+                        setIsLong(loc.longitude);
+                      }}
+                      className="loc"
+                      key={`${loc.latitude}-${loc.longitude}-${loc.acq_date}-${loc.acq_time}-${loc.satellite}`}
+                    >
+                      <div className="locDetails">
+                        <span>Longitude: {loc.longitude}</span>
+                        <span>Latitude: {loc.latitude}</span>
+                      </div>
+
+                      <div className="locIndicators">
+                        <span className={`sensorIndi sensorIndi--${sensorFamily.toLowerCase()}`}>
+                          {datasetLabel}
+                        </span>
+                        <span className={`riskIndiLoc ${calculateFireRisk(loc).level.toLowerCase()}`}>
+                          {calculateFireRisk(loc).level}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
             <div className="mapContainer" style={{display: isMapVisible ? "block" : "none"}}>
-              <MapComponent fires={fires} selectedCountry={selectedContry} long={isLong} lat={isLat} activeRisk={isActiveRisk}/>
+              <MapComponent
+                fires={yearFilteredFires}
+                selectedCountry={selectedContry}
+                long={isLong}
+                lat={isLat}
+                activeRisk={isActiveRisk}
+                selectedFire={selectedFire}
+                onSelectFire={setSelectedFire}
+                visibleSensorFamilies={visibleSensorFamilies}
+                onToggleSensorFamily={toggleSensorFamily}
+              />
               <button className="mapClose" onClick={() => {setIsMainOptionPanel(true); setIsMapVisible(false)}}>×</button>
             </div>
           </section>

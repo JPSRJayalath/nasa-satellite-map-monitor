@@ -8,51 +8,89 @@ import asyncio
 
 app = FastAPI()
 
-CSV_FILE = Path("datasets/dataset_01.csv")
+CSV_FILES = (
+    Path(__file__).resolve().parent / "datasets" / "dataset_01.csv",
+    Path(__file__).resolve().parent / "datasets" / "dataset_02.csv",
+)
 
 connections: list[WebSocket] = []
 
 # Cached dataset
 fire_df: Optional[pd.DataFrame] = None
-file_modified: Optional[float] = None
+file_modified: Optional[tuple[float, ...]] = None
 
 
 # ---------------------------------
 # 1. LOAD AND CACHE CSV
 # ---------------------------------
 
+def normalize_dataset(df: pd.DataFrame) -> pd.DataFrame:
+    df["sensor_family"] = (
+        "MODIS"
+        if "brightness" in df.columns and "bright_t31" in df.columns
+        else "VIIRS"
+    )
+
+    if "bright_ti4" not in df.columns and "brightness" in df.columns:
+        df["bright_ti4"] = df["brightness"]
+
+    if "bright_ti5" not in df.columns and "bright_t31" in df.columns:
+        df["bright_ti5"] = df["bright_t31"]
+
+    numeric_columns = [
+        "latitude",
+        "longitude",
+        "bright_ti4",
+        "bright_ti5",
+        "frp",
+        "scan",
+        "track"
+    ]
+
+    for col in numeric_columns:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    if "confidence" in df.columns:
+        confidence_values = pd.to_numeric(df["confidence"], errors="coerce")
+        numeric_confidence = confidence_values.notna()
+
+        if numeric_confidence.any():
+            df["confidence_value"] = confidence_values
+            df["confidence"] = df["confidence"].astype(object)
+            df.loc[numeric_confidence, "confidence"] = (
+                confidence_values.loc[numeric_confidence]
+                .map(
+                    lambda value:
+                        "low" if value < 30 else
+                        "nominal" if value < 80 else
+                        "high"
+                )
+            )
+
+    return df
+
+
 def read_csv():
 
     global fire_df, file_modified
 
-    modified = CSV_FILE.stat().st_mtime
+    modified = tuple(csv_file.stat().st_mtime for csv_file in CSV_FILES)
 
     if fire_df is None or modified != file_modified:
 
-        print("Loading fire dataset...")
+        print("Loading fire datasets...")
 
-        df = pd.read_csv(CSV_FILE, low_memory=False)
-
-        numeric_columns = [
-            "latitude",
-            "longitude",
-            "bright_ti4",
-            "bright_ti5",
-            "frp",
-            "scan",
-            "track"
+        datasets = [
+            normalize_dataset(pd.read_csv(csv_file, low_memory=False))
+            for csv_file in CSV_FILES
         ]
-
-        for col in numeric_columns:
-            if col in df.columns:
-                df[col] = pd.to_numeric(
-                    df[col], errors="coerce"
-                )
+        df = pd.concat(datasets, ignore_index=True, sort=False)
 
         fire_df = df
         file_modified = modified
 
-        print(f"Loaded {len(df)} fire records")
+        print(f"Loaded {len(df)} fire records from {len(CSV_FILES)} datasets")
 
     return fire_df
 
@@ -93,6 +131,24 @@ def calculate_summary(df):
         "average_ti4": round(float(df["bright_ti4"].mean()), 2),
         "average_ti5": round(float(df["bright_ti5"].mean()), 2),
     }
+
+
+def calculate_brightness_distribution(df):
+
+    distribution = []
+
+    for sensor_family, source_df in df.groupby("sensor_family"):
+        is_modis = sensor_family == "MODIS"
+        distribution.append({
+            "dataset": "dataset_02.csv" if is_modis else "dataset_01.csv",
+            "sensor_family": sensor_family,
+            "channel_1_name": "Brightness" if is_modis else "Brightness TI4",
+            "channel_1_average": round(float(source_df["bright_ti4"].mean()), 2),
+            "channel_2_name": "Brightness T31" if is_modis else "Brightness TI5",
+            "channel_2_average": round(float(source_df["bright_ti5"].mean()), 2),
+        })
+
+    return distribution
 
 
 # ---------------------------------
@@ -153,7 +209,32 @@ def calculate_satellites(df):
 
 
 # ---------------------------------
-# 7. CONFIDENCE DISTRIBUTION
+# 7. SOURCE DATASET DISTRIBUTION
+# ---------------------------------
+
+def calculate_source_distribution(df):
+
+    result = (
+        df.groupby("sensor_family")
+        .agg(
+            fire_count=("frp", "count"),
+            total_frp=("frp", "sum")
+        )
+        .reset_index()
+    )
+
+    result["dataset"] = result["sensor_family"].map({
+        "VIIRS": "dataset_01.csv",
+        "MODIS": "dataset_02.csv"
+    })
+
+    return result[
+        ["dataset", "sensor_family", "fire_count", "total_frp"]
+    ].to_dict("records")
+
+
+# ---------------------------------
+# 8. CONFIDENCE DISTRIBUTION
 # ---------------------------------
 
 def calculate_confidence(df):
@@ -169,7 +250,7 @@ def calculate_confidence(df):
 
 
 # ---------------------------------
-# 8. DAY / NIGHT DISTRIBUTION
+# 9. DAY / NIGHT DISTRIBUTION
 # ---------------------------------
 
 def calculate_daynight(df):
@@ -185,7 +266,7 @@ def calculate_daynight(df):
 
 
 # ---------------------------------
-# 9. HOURLY DISTRIBUTION
+# 10. HOURLY DISTRIBUTION
 # ---------------------------------
 
 def calculate_hourly(df):
@@ -208,7 +289,7 @@ def calculate_hourly(df):
 
 
 # ---------------------------------
-# 10. GEOGRAPHIC HOTSPOTS
+# 11. GEOGRAPHIC HOTSPOTS
 # ---------------------------------
 
 def calculate_hotspots(df):
@@ -231,7 +312,7 @@ def calculate_hotspots(df):
 
 
 # ---------------------------------
-# 11. COMPLETE ANALYTICS
+# 12. COMPLETE ANALYTICS
 # ---------------------------------
 
 def analyze_fire_data():
@@ -240,9 +321,11 @@ def analyze_fire_data():
 
     return {
         "summary": calculate_summary(df),
+        "brightness_distribution": calculate_brightness_distribution(df),
         "frp_distribution": calculate_frp(df),
         "temperature": calculate_temperature(df),
         "satellite_distribution": calculate_satellites(df),
+        "source_distribution": calculate_source_distribution(df),
         "confidence_distribution": calculate_confidence(df),
         "daynight_distribution": calculate_daynight(df),
         "hourly_distribution": calculate_hourly(df),
@@ -352,7 +435,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     "data": analytics
                 })
 
-            # Legacy request: analytics + limited raw data
+            # Map request: analytics + all raw data
             elif category == "any":
 
                 analytics = await asyncio.to_thread(
@@ -363,8 +446,8 @@ async def websocket_endpoint(websocket: WebSocket):
                     lambda: clean_data(read_csv())
                 )
 
-                records = df.head(1000).astype(object).where(
-                    pd.notna(df.head(1000)), None
+                records = df.astype(object).where(
+                    pd.notna(df), None
                 )
 
                 await websocket.send_json({
