@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Map, setWorkerUrl, type GeoJSONSource, LngLatBounds, Marker } from "maplibre-gl";
+import { Map, setWorkerUrl, type GeoJSONSource, LngLatBounds } from "maplibre-gl";
 import type { FireData } from "@/hooks/useFireData";
 import type { FeatureCollection, Point } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -26,7 +26,6 @@ type FireProperties = {
   riskScore: number;
 };
 
-// Calculate fire risk
 function calculateFireRisk(fire: FireData) {
   const frpScore = Math.min(
     100,
@@ -62,11 +61,10 @@ function calculateFireRisk(fire: FireData) {
       riskScore >= 80 ? "Critical" :
       riskScore >= 60 ? "High" :
       riskScore >= 40 ? "Moderate" :
-      riskScore >= 20 ? "Low" : "Very Low"
+      riskScore >= 20 ? "Low" : "Very Low",
   };
 }
 
-// Filter fires according to selected risk
 function filterFires(
   fires: FireData[],
   activeRisk: string | null
@@ -80,7 +78,6 @@ function filterFires(
   );
 }
 
-// Convert fire data into GeoJSON
 function createFireGeoJSON(
   fires: FireData[]
 ): FeatureCollection<Point, FireProperties> {
@@ -106,7 +103,6 @@ function createFireGeoJSON(
   };
 }
 
-// Update fire source
 function updateFireSource(
   map: Map,
   fires: FireData[]
@@ -120,6 +116,116 @@ function updateFireSource(
   source.setData(createFireGeoJSON(fires));
 }
 
+function addPulsingLocation(map: Map) {
+  // Location source
+  map.addSource("selected-location", {
+    type: "geojson",
+    data: {
+      type: "FeatureCollection",
+      features: [],
+    },
+  });
+
+  // Outer pulsing circle
+  map.addLayer({
+    id: "location-pulse",
+    type: "circle",
+    source: "selected-location",
+
+    paint: {
+      "circle-radius": 10,
+      "circle-color": "#f97316",
+      "circle-opacity": 0.5,
+
+      "circle-stroke-width": 2,
+      "circle-stroke-color": "#f97316",
+    },
+  });
+
+  // Inner location dot
+  map.addLayer({
+    id: "location-dot",
+    type: "circle",
+    source: "selected-location",
+
+    paint: {
+      "circle-radius": 7,
+      "circle-color": "#f97316",
+
+      "circle-stroke-width": 3,
+      "circle-stroke-color": "#ffffff",
+    },
+  });
+}
+
+function animateLocationPulse(map: Map) {
+  let frame = 0;
+  let stopped = false;
+
+  const duration = 1200;
+
+  const animate = (time: number) => {
+    if (stopped || !map.getLayer("location-pulse")) {
+      return;
+    }
+
+    const progress = (time % duration) / duration;
+
+    const radius = 10 + progress * 25;
+    const opacity = 0.5 * (1 - progress);
+
+    map.setPaintProperty(
+      "location-pulse",
+      "circle-radius",
+      radius
+    );
+
+    map.setPaintProperty(
+      "location-pulse",
+      "circle-opacity",
+      opacity
+    );
+
+    frame = requestAnimationFrame(animate);
+  };
+
+  frame = requestAnimationFrame(animate);
+
+  return () => {
+    stopped = true;
+    cancelAnimationFrame(frame);
+  };
+}
+
+function updateSelectedLocation(
+  map: Map,
+  longitude: number,
+  latitude: number
+) {
+  const source = map.getSource(
+    "selected-location"
+  ) as GeoJSONSource | undefined;
+
+  if (!source) return;
+
+  source.setData({
+    type: "FeatureCollection",
+
+    features: [
+      {
+        type: "Feature",
+
+        geometry: {
+          type: "Point",
+          coordinates: [longitude, latitude],
+        },
+
+        properties: {},
+      },
+    ],
+  });
+}
+
 export default function MapComponent({
   fires,
   selectedCountry,
@@ -129,21 +235,23 @@ export default function MapComponent({
 }: MapComponentProps) {
 
   const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef(null);
-  const markerRef = useRef<Marker | null>(null);
+  const mapRef = useRef<Map | null>(null);
+
+  const animationCleanup = useRef<(() => void) | null>(null);
 
   const [selectedFire, setSelectedFire] =
     useState<FireData | null>(null);
 
   const [mapLoaded, setMapLoaded] = useState(false);
 
-  // Initialize map
   useEffect(() => {
     if (!mapContainer.current) return;
 
     const map = new Map({
       container: mapContainer.current,
+
       style: "https://tiles.openfreemap.org/styles/liberty",
+
       center: [80.7718, 7.8731],
       zoom: 7,
     });
@@ -152,16 +260,17 @@ export default function MapComponent({
 
     map.on("load", () => {
 
-      // Add fire GeoJSON source
+      // FIRE SOURCE
       map.addSource("fires", {
         type: "geojson",
+
         data: {
           type: "FeatureCollection",
           features: [],
         },
       });
 
-      // Add fire circle layer
+      // FIRE LAYER
       map.addLayer({
         id: "fire-points",
         type: "circle",
@@ -179,14 +288,20 @@ export default function MapComponent({
 
           "circle-color": "#f97316",
           "circle-stroke-width": 3,
-          "circle-stroke-color": "#f97316"
+          "circle-stroke-color": "#f97316",
         },
       });
 
-      // Map is ready
+      // ADD SELECTED LOCATION MARKER
+      addPulsingLocation(map);
+
+      // START PULSE ANIMATION
+      animationCleanup.current = animateLocationPulse(map);
+
+      // MAP READY
       setMapLoaded(true);
 
-      // Click fire point
+      // CLICK FIRE POINT
       map.on("click", "fire-points", (event) => {
         const feature = event.features?.[0];
 
@@ -199,7 +314,7 @@ export default function MapComponent({
         setSelectedFire(fire);
       });
 
-      // Pointer cursor
+      // POINTER CURSOR
       map.on("mouseenter", "fire-points", () => {
         map.getCanvas().style.cursor = "pointer";
       });
@@ -213,21 +328,25 @@ export default function MapComponent({
       console.error("MapLibre error:", event.error);
     });
 
+    // CLEANUP
     return () => {
-      if (markerRef.current) {
-        markerRef.current.remove();
-        markerRef.current = null;
-      }
+      animationCleanup.current?.();
+      animationCleanup.current = null;
+
       mapRef.current = null;
+
       map.remove();
     };
+
   }, []);
 
-  // Update fire locations and filter by risk
   useEffect(() => {
     if (!mapLoaded || !mapRef.current) return;
 
-    const filteredFires = filterFires(fires, activeRisk);
+    const filteredFires = filterFires(
+      fires,
+      activeRisk
+    );
 
     updateFireSource(
       mapRef.current,
@@ -236,9 +355,12 @@ export default function MapComponent({
 
   }, [fires, activeRisk, mapLoaded]);
 
-  // Search country
   useEffect(() => {
-    if (!mapLoaded || !mapRef.current || !selectedCountry) return;
+    if (
+      !mapLoaded ||
+      !mapRef.current ||
+      !selectedCountry
+    ) return;
 
     let cancelled = false;
 
@@ -291,48 +413,40 @@ export default function MapComponent({
 
   }, [selectedCountry, mapLoaded]);
 
-  // Calculate risk ratio
   function getRiskRatio(fire: FireData) {
     return calculateFireRisk(fire);
   }
 
-  // Search location using longitude and latitude with a blinking/pulsing marker
   function targetLocation(
     longitude: number,
     latitude: number
   ) {
     if (!mapRef.current) return;
 
-    mapRef.current.flyTo({
+    const map = mapRef.current;
+
+    // UPDATE BLINKING LOCATION MARKER
+    updateSelectedLocation(
+      map,
+      longitude,
+      latitude
+    );
+
+    // FLY TO SELECTED LOCATION
+    map.flyTo({
       center: [longitude, latitude],
       zoom: 8,
       duration: 1500,
       essential: true,
     });
-
-    // Remove previous target marker if it exists
-    if (markerRef.current) {
-      markerRef.current.remove();
-      markerRef.current = null;
-    }
-
-    // Create custom DOM element for the blinking/pulsing dot
-    const el = document.createElement("div");
-    el.className = "relative flex items-center justify-center w-6 h-6";
-    el.innerHTML = `
-      <span class="absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75 animate-ping"></span>
-      <span class="relative inline-flex rounded-full h-3 w-3 bg-orange-600 border-2 border-white shadow-lg"></span>
-    `;
-
-    // Add marker to map
-    markerRef.current = new Marker({ element: el })
-      .setLngLat([longitude, latitude])
-      .addTo(mapRef.current);
   }
 
-  // Watch coordinate changes from page.tsx
   useEffect(() => {
-    if (!mapLoaded || long === null || lat === null) return;
+    if (
+      !mapLoaded ||
+      long === null ||
+      lat === null
+    ) return;
 
     if (
       !Number.isFinite(long) ||
@@ -350,18 +464,20 @@ export default function MapComponent({
   return (
     <section className="x-full h-full mapContent">
 
-      {/* MapLibre container */}
+      {/* MAPLIBRE CONTAINER */}
       <div
         ref={mapContainer}
         className="w-full h-full"
       />
 
-      {/* Fire details panel */}
+      {/* FIRE DETAILS PANEL */}
       {selectedFire && (
         <div className="detailsPanel">
 
           <div className="macOSCloseControler">
-            <button onClick={() => setSelectedFire(null)}>
+            <button
+              onClick={() => setSelectedFire(null)}
+            >
               ×
             </button>
           </div>
