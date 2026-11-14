@@ -38,6 +38,10 @@ body {
   height: 100vh;
 }
 
+.mapAttribution{
+  display: none;
+}
+
 .maplibregl-ctrl-bottom-right {
   display: none !important;
 }

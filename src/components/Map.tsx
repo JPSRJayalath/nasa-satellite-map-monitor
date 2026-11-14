@@ -12,12 +12,7 @@ import type { FireData, SensorFamily } from "@/hooks/useFireData";
 import type { FeatureCollection, Point } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-setWorkerUrl(
-  new URL(
-    "maplibre-gl/dist/maplibre-gl-worker.mjs",
-    import.meta.url
-  ).toString()
-);
+setWorkerUrl("/maplibre-gl-worker.mjs");
 
 interface MapComponentProps {
   selectedCountry: string;
@@ -251,7 +246,6 @@ export default function MapComponent({
     mapRef.current = map;
 
     map.on("load", () => {
-
       // FIRE SOURCE
       map.addSource("fires", {
         type: "geojson",

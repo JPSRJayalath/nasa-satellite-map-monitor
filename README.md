@@ -1,52 +1,113 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NASA Fire Monitor
 
-## Getting Started
+A fire-monitoring application with a Next.js web interface and a FastAPI backend. **Run both services during development**: the Next.js app does not start the Python backend for you.
 
-First, run the development server:
+## Requirements
+
+- Node.js 20.9 or later and npm
+- Python 3.11 or later and pip
+
+## Install
+
+If you have not already cloned the project:
+
+```bash
+git clone https://github.com/JPSRJayalath/nasa-satellite-map-monitor.git
+cd nasa-satellite-map-monitor
+```
+
+### Install backend dependencies
+
+In a terminal, create and activate a Python virtual environment from the `server` directory:
+
+```bash
+cd server
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install fastapi "uvicorn[standard]" pandas numpy
+```
+
+On Windows PowerShell, create and activate the environment with:
+
+```powershell
+cd server
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+Then run the two `python -m pip` install commands above.
+
+### Install frontend dependencies
+
+Open a **second terminal** in the project root (the directory containing `package.json`) and install the locked npm dependencies:
+
+```bash
+npm ci
+```
+
+The `postinstall` script copies `maplibre-gl-worker.mjs` and its source map from `node_modules/maplibre-gl/dist/` into `public/`. To repeat the copy manually after changing the MapLibre version, run this from the project root:
+
+```bash
+npm run copy:maplibre-worker
+```
+
+## Start the application
+
+Keep both terminals running.
+
+**Terminal 1 — backend:** from the `server` directory, activate the virtual environment if needed, then start FastAPI:
+
+```bash
+uvicorn main:app --reload --host 0.0.0.0 --port 9000
+```
+
+The backend should report that it is listening on port `9000`. Its interactive API documentation is available at [http://localhost:9000/docs](http://localhost:9000/docs).
+
+**Terminal 2 — web app:** from the project root:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open the URL printed by Next.js, normally [http://localhost:3000](http://localhost:3000). If port `3000` is busy, Next.js may use `3001`; both local ports are allowed by the backend's CORS configuration.
+
+The frontend calls the backend at `http://localhost:9000`, so use the web app and backend on the same computer. The `0.0.0.0` host setting is for local development and listens on all network interfaces; do not expose this development server to an untrusted network.
 
 ## Fire dataset files
 
-Put compatible fire-monitoring `.csv` files in `server/datasets/`. The backend automatically discovers every CSV in that folder and reloads on the next data request after files are added, removed, or changed; dataset filenames do not need to be added to the code. Refresh the browser to request the updated data.
+Place fire-monitoring CSV files in `server/datasets/`. The backend automatically discovers CSV files in that folder and reloads them on a data request after a file is added, removed, or changed. Refresh the browser to request updated data.
 
-Each file must include `latitude`, `longitude`, `acq_date`, `acq_time`, and `frp`, plus both brightness channels using either `bright_ti4`/`bright_ti5` or `brightness`/`bright_t31`. Headers are case- and whitespace-insensitive. Instrument and satellite columns are used to identify MODIS or VIIRS when available. Files missing required columns are reported instead of silently skipped.
+Each CSV must include:
 
-All valid records contribute to analytics and are represented at their exact coordinates on the map. Map requests return every matching detection in the current viewport without a 50,000-record cap; dots are blue for MODIS and orange for VIIRS. The map is mounted only when opened, and the backend stops generating points when a viewport request is canceled. The location list continues to use a repeatable sample of up to 50,000 records and shows 200 entries at a time. The paginated `/api/fire/data` endpoint can retrieve the full dataset.
+- `latitude`, `longitude`, `acq_date`, `acq_time`, and `frp`
+- A brightness channel named `bright_ti4` or `brightness`
+- A second brightness channel named `bright_ti5` or `bright_t31`
+
+Column names are case- and whitespace-insensitive. When available, `instrument` and `satellite` values are used to identify MODIS or VIIRS. Files with missing required columns are reported as errors.
+
+All valid records contribute to analytics. The map displays matching detections at their exact coordinates in the current viewport, with MODIS and VIIRS shown in different colors. The location list uses a repeatable sample of up to 50,000 records and displays 200 entries at a time; the paginated `/api/fire/data` endpoint can retrieve the full dataset.
 
 ## Burning activity calendar
 
-The analytics dashboard includes a monthly-by-year hotspot calendar. Start/end dates filter the calendar and CSV export. Optional west/south/east/north coordinates restrict both to a bounding box; leave all four empty for global results. All four bounds must be provided together, and boxes crossing the antimeridian are not supported. The existing summary cards and charts remain global.
+The analytics dashboard includes a month-by-year hotspot calendar. Start and end dates filter the calendar and CSV export. Optional west, south, east, and north coordinates restrict both to a bounding box; provide all four bounds together. Boxes crossing the antimeridian are not supported. Summary cards and charts remain global.
 
-Each complete calendar month is compared with the median detection count for the same month in earlier complete years. Partial months remain visible but have no anomaly comparison. The API reports the actual available dataset date range; it does not fabricate earlier observations. `/api/fire/calendar` returns the monthly counts and comparisons, and `/api/fire/export.csv` streams the matching raw rows.
+Complete calendar months are compared with the median detection count for the same month in earlier complete years. Partial months are shown without an anomaly comparison. The API reports the actual date range available in the CSV files; it does not fabricate earlier observations.
 
-MODIS and VIIRS detections are currently combined as supplied, not statistically sensor-harmonized. Their differing resolution, sensitivity, and observation schedules still require a validated harmonization method before counts can be interpreted as a sensor-independent time series.
+MODIS and VIIRS detections are combined as supplied and are **not currently statistically harmonized**. Their differing resolution, sensitivity, and observation schedules must be addressed with a validated method before interpreting counts as a sensor-independent time series.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Backend endpoints
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `GET /` — backend status
+- `GET /api/fire/analytics` — summary analytics
+- `GET /api/fire/map` — detections in the requested map viewport
+- `GET /api/fire/data` — paginated fire records
+- `GET /api/fire/calendar` — calendar counts and historical comparisons
+- `GET /api/fire/export.csv` — download filtered detections as CSV
+- `WS /ws` — backend status updates
 
-## Learn More
+## Troubleshooting
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **The app shows “Disconnected” or cannot load fire data:** make sure the Uvicorn terminal is still running on port `9000` and the browser opened the Next.js URL on `localhost` or `127.0.0.1`.
+- **The map or charts show no detections:** confirm that valid CSV files are in `server/datasets/` and that their headers include all required columns.
+- **The frontend uses a different port:** the backend currently allows local origins on ports `3000` and `3001`; update the CORS origins in `server/main.py` if you intentionally use another port.

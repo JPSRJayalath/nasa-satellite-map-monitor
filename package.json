@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "copy:maplibre-worker": "node scripts/copy-maplibre-worker.mjs",
+    "postinstall": "npm run copy:maplibre-worker"
   },
   "dependencies": {
     "@maplibre/maplibre-gl-directions": "^0.10.1",
