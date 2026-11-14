@@ -1,10 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useFireData } from "@/hooks/useFireData";
+import { useFireData, FireData } from "@/hooks/useFireData";
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import type { FireData } from "@/hooks/useFireData";
 import FireAnalytics from "@/components/Charts";
 
 interface Country {
@@ -27,7 +26,7 @@ const MapComponent = dynamic(() => import("@/components/Map"),
 );
 
 export default function Home() {
-  const { fires, err } = useFireData();
+  const { fires, err, connected } = useFireData();
   const [isMapVisible, setIsMapVisible] = useState<boolean>(false);
   const [isMainOptionPanel, setIsMainOptionPanel] = useState<boolean>(true);
   const [isAnalyzePanel, setIsAnalyzePanel] = useState<boolean>(false);
@@ -102,6 +101,7 @@ export default function Home() {
       <section className="mainContainer">
         {isAnalyzePanel ? (
           <section className="AnalyzePanel">
+            <button onClick={() => {setIsAnalyzePanel(false); setIsMainOptionPanel(true);}} className="chartPanelClose">×</button>
             <FireAnalytics />
           </section>
         ) : (
@@ -151,7 +151,18 @@ export default function Home() {
               </div>
             </div>
             <div className="mapControlers" style={{display: isMainOptionPanel ? "none" : "flex"}}>
-              <h2>Filters</h2>
+              <div className="mapControlersHead">
+                <h2>Filters</h2>
+                <div className="fireConnectionStatus">
+                  <span
+                    className={`fireConnectionIndicator ${
+                      connected ? "isConnected" : "isDisconnected"
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <span>{connected ? "Connected" : "Disconnected"}</span>
+                </div>
+              </div>
               <input type="text" placeholder="Country" value={selectedContry} list="countries" onChange={(e) => setSelectedCountry(e.target.value)} />
               <datalist id="countries">
                 {countries.map((country) => (

@@ -3,6 +3,7 @@
 
 :root {
   --background: #ededed;
+  --plainBackground: #ffffff;
   --foreground: #171717;
   --panelBackground: #ffffff;
   --border: #707070;
@@ -22,6 +23,7 @@
     --foreground: #ededed;
     --border: rgb(120, 120, 120);
     --hoverbackground: rgba(255, 255, 255, 0.2);
+    --plainBackground: #1d1d1d;
   }
 }
 
@@ -290,7 +292,14 @@ body {
   flex-direction: column;
 }
 
-.mapControlers > h2{
+.mapControlersHead{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mapControlersHead > h2{
   font-size: 2rem;
   margin-bottom: 20px;
 }
@@ -377,15 +386,11 @@ input:focus {
     height: 100%;
     min-width: 0;
     min-height: 0;
-
     display: flex;
     flex-direction: column;
-
     box-sizing: border-box;
     overflow: auto;
-
     padding: 20px;
-
     overflow: hidden;
 }
 
@@ -406,6 +411,25 @@ input:focus {
     }
 }
 
+.chartPanelClose{
+  background: #ef4444;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  cursor: pointer;
+  margin-top: 10px;
+  margin-left: 10px;
+}
+
+.chartPanelClose:hover{
+  color: #000000;
+}
+
 .fireDashboard,
 .fireDashboardState {
   box-sizing: border-box;
@@ -416,7 +440,8 @@ input:focus {
   overflow: auto;
   padding: clamp(12px, 2vw, 24px);
   color: var(--foreground);
-  background: var(--background);
+  background: var(--plainBackground);
+  border-radius: 20px;
 }
 
 .fireDashboard {
@@ -477,7 +502,8 @@ input:focus {
 }
 
 .fireConnectionIndicator.isConnected {
-  background: #16a34a;
+  background: #00ff00;
+  box-shadow: 0 0 10px #00ff00;
 }
 
 .fireConnectionIndicator.isDisconnected {
