@@ -163,6 +163,14 @@ body {
 }
 
 .mainContainer{
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.subMainContainer{
   display: grid;
   grid-template-columns: 6fr 20fr;
   align-items: center;
@@ -353,4 +361,255 @@ input:focus {
 .riskIndiLoc{
   padding: 4px 6px;
   border-radius: 9999px;
+}
+
+
+.AnalyzeTools {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    box-sizing: border-box;
+}
+
+.AnalyzePanel {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    box-sizing: border-box;
+    overflow: auto;
+
+    padding: 20px;
+
+    overflow: hidden;
+}
+
+/* FireAnalytics root container */
+.AnalyzePanel > * {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    flex: 1;
+    overflow-y: auto;
+}
+
+
+/* Responsive */
+@media (max-width: 768px) {
+    .AnalyzePanel {
+        padding: 10px;
+    }
+}
+
+.fireDashboard,
+.fireDashboardState {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: clamp(12px, 2vw, 24px);
+  color: var(--foreground);
+  background: var(--background);
+}
+
+.fireDashboard {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(14px, 2vw, 22px);
+}
+
+.fireDashboardState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.fireDashboardError {
+  color: #dc2626;
+}
+
+.fireDashboardHeader {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.fireDashboardHeading h1 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2vw, 1.8rem);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.fireDashboardHeading p {
+  margin: 6px 0 0;
+  color: #737373;
+  font-size: 0.9rem;
+}
+
+.fireConnectionStatus {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panelBackground);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.fireConnectionIndicator {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.fireConnectionIndicator.isConnected {
+  background: #16a34a;
+}
+
+.fireConnectionIndicator.isDisconnected {
+  background: #dc2626;
+}
+
+.fireStatsGrid,
+.fireTemperatureGrid,
+.fireChartsGrid {
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+}
+
+.fireStatsGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.fireTemperatureGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.fireChartsGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.fireStatCard,
+.fireTemperatureCard,
+.fireChartCard,
+.fireDashboardFooter {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panelBackground);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+}
+
+.fireStatCard {
+  padding: clamp(14px, 1.6vw, 20px);
+}
+
+.fireStatLabel,
+.fireTemperatureCard > p {
+  margin: 0;
+  color: #737373;
+  font-size: 0.85rem;
+}
+
+.fireStatValue {
+  overflow-wrap: anywhere;
+  margin: 12px 0 2px;
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  line-height: 1.15;
+}
+
+.fireStatValue--orange {
+  color: #f97316;
+}
+
+.fireStatValue--red {
+  color: #ef4444;
+}
+
+.fireStatValue--blue {
+  color: #3b82f6;
+}
+
+.fireStatValue--purple {
+  color: #a855f7;
+}
+
+.fireStatUnit {
+  margin: 0;
+  color: #8a8a8a;
+  font-size: 0.75rem;
+}
+
+.fireTemperatureCard {
+  padding: 16px 20px;
+}
+
+.fireTemperatureCard h2 {
+  margin: 8px 0 0;
+  font-size: clamp(1.25rem, 2vw, 1.6rem);
+}
+
+.fireChartCard {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  padding: 16px;
+}
+
+.fireChartTitle {
+  flex: 0 0 auto;
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.fireChartPlot {
+  width: 100%;
+  height: clamp(220px, 30vh, 320px);
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  .fireStatsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 850px) {
+  .fireChartsGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .fireDashboardHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .fireTemperatureGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 380px) {
+  .fireStatsGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

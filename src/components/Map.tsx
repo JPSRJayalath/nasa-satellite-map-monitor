@@ -507,6 +507,8 @@ export default function MapComponent({
         </div>
       )}
 
+      
+
     </section>
   );
 }
